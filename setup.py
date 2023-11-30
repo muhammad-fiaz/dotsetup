@@ -1,32 +1,26 @@
 from setuptools import setup, find_packages
-from dotenv import load_dotenv
-import os
 
-# Load environment variables from .env
-load_dotenv()
+version = "0.0.0"
 
-# Get the version from the environment variable
-version = os.getenv("VERSION")
 
 with open("README.md", "r", encoding="utf-8") as readme_file:
     long_description = readme_file.read()
 
 setup(
-    name='runix',
+
+    name='dotsetup',
     version=version,
-    description='A high-level Python web framework for web development.',
+    description='A simple setup tool for Python projects to manage environment variables and configuration files.',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author='Your Name',
-    author_email='contactus@fiaz.dev',
+    author='Muhammad Fiaz',
+    author_email='contact@muhammadfiaz.com',
     packages=find_packages(),
     entry_points={
-        'console_scripts': [
-            'runix = runix.cli:create',
-        ],
+
     },
     install_requires=[
-        'click',
+
         # Add other dependencies here
     ],
 )
