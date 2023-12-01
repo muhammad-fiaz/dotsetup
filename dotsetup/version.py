@@ -1,3 +1,4 @@
+
 # version.py
 
 import importlib.metadata
@@ -37,4 +38,5 @@ def get_Version(current_version):
         print(f"A newer version ({latest_version}) of dotsetup is available.")
     else:
         pass
+
 

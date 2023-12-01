@@ -1,8 +1,8 @@
 """
 __init__.py
 
-This module initializes the dotsetup package
 
+This module initializes the dotsetup package
 """
 
 from dotsetup.parse import DotSetup
