@@ -1,8 +1,0 @@
-
-USERNAME={"johndoe"}
-PASSWORD="mysecretpassword"
-API_KEY="abc123"
-NUMBER=1
-Numbers={1,2,3,4,5}
-LINKS={"https://www.google.com","https://www.facebook.com","https://www.twitter.com"}
-

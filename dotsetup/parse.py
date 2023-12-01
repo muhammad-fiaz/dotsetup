@@ -1,20 +1,17 @@
-# parse.py
 import ast
 import os
 import json
 import configparser
-from dotsetup.exception import (
-    DotSetupException,
-    FileNotFoundError,
-    VariableNotFoundError,
-    JSONDecodeError
-)
+import warnings
+
+from dotsetup.exception import JSONDecodeError, VariableNotFoundError
 
 
 class DotSetup:
     """A class for loading configuration variables from different file types."""
 
     def __init__(self):
+        """Initialize an instance of the DotSetup class."""
         pass
 
     def load(self, variable_name, file_type='env', file_path=None):
@@ -61,7 +58,7 @@ class DotSetup:
         elif file_type == 'ini':
             return 'config.ini'
         elif file_type == 'custom':
-            return 'customfile.customcfg'
+            return 'config.con'
 
     def _find_env_file(self):
         """Find the appropriate .env file from a list of possible names."""
@@ -160,7 +157,6 @@ class DotSetup:
         else:
             raise FileNotFoundError("INI", file_path)
 
-
     def _load_from_custom(self, variable_name, file_path):
         """
         Load a variable from a custom file.
@@ -170,7 +166,7 @@ class DotSetup:
             file_path (str): The path to the custom file.
 
         Returns:
-            The value of the variable.
+            The value of the variable or None if not found.
 
         Raises:
             FileNotFoundError: If the custom file is not found.
@@ -185,7 +181,11 @@ class DotSetup:
                     raise JSONDecodeError(file_path) from e
                 nested_keys = variable_name.split('.')
                 for key in nested_keys:
-                    parsed_data = parsed_data.get(key, {})
+                    if key in parsed_data:
+                        parsed_data = parsed_data[key]
+                    else:
+                        warnings.warn(f"Variable '{variable_name}' not found in the custom file.")
+                        return None
                 return parsed_data
         else:
             raise FileNotFoundError("Custom", file_path)
@@ -215,10 +215,14 @@ class DotSetup:
                 # Split the line into key and value
                 key, value = line.split('=', 1)
 
-                # Check if the value is enclosed in curly braces indicating a nested variable
-                if value.startswith('{') and value.endswith('}'):
-                    # Update the current dictionary with the nested key-value pair
-                    current_dict[key] = self._parse_nested_values(value)
+                # Check if the key already exists in the dictionary
+                if key in current_dict:
+                    # If yes, convert the value to a list and append the new value
+                    existing_value = current_dict[key]
+                    if not isinstance(existing_value, list):
+                        existing_value = [existing_value]
+                    existing_value.append(self._parse_single_value(value))
+                    current_dict[key] = existing_value
                 else:
                     current_dict[key] = self._parse_single_value(value)
             elif line.startswith("{") and line.endswith("}"):
@@ -257,18 +261,17 @@ class DotSetup:
             value (str): String containing a single value.
 
         Returns:
-            Parsed value.
+            Parsed value with the same data type.
         """
-        # Check if the value is a number
-        if value.isdigit():
-            return int(value)
+        try:
+            # Try to evaluate the value using ast.literal_eval
+            parsed_value = ast.literal_eval(value)
 
-        # Check if the value is a boolean
-        elif value.lower() == 'true' or value.lower() == 'false':
-            return value.lower() == 'true'
-
-        # Check if the value is enclosed in quotes, consider it a string
-        elif value.startswith('"') and value.endswith('"'):
-            return value.strip('"')
-
-        return value
+            # Check if the parsed value is a dictionary
+            if isinstance(parsed_value, dict):
+                return parsed_value
+            else:
+                return value
+        except (ValueError, SyntaxError):
+            # If literal_eval fails, return the value as a string
+            return value
