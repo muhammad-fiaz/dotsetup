@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 from dotsetup.version import get_Version
 
+
 version = "0.0.1"
 get_Version(version)
+
 
 with open("README.md", "r", encoding="utf-8") as readme_file:
     long_description = readme_file.read()
@@ -21,6 +23,7 @@ setup(
     packages=find_packages(),
     entry_points={},
     install_requires=[
+
 
     ],
     classifiers=[
