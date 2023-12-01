@@ -1,8 +1,14 @@
 # parse.py
+import ast
 import os
 import json
 import configparser
-from dotsetup.exception import DotSetupException, FileNotFoundError, VariableNotFoundError, JSONDecodeError
+from dotsetup.exception import (
+    DotSetupException,
+    FileNotFoundError,
+    VariableNotFoundError,
+    JSONDecodeError
+)
 
 
 class DotSetup:
@@ -17,7 +23,7 @@ class DotSetup:
 
         Args:
             variable_name (str): The name of the variable to load.
-            file_type (str): The type of file to load from ('env', 'json', 'ini').
+            file_type (str): The type of file to load from ('env', 'json', 'ini', 'custom').
             file_path (str): The path to the file. If None, the default path will be used.
 
         Returns:
@@ -27,8 +33,8 @@ class DotSetup:
             ValueError: If an invalid file type is provided.
             DotSetupException: If there is an issue loading the variable.
         """
-        if file_type not in ['env', 'json', 'ini']:
-            raise ValueError("Invalid file type. Supported types are 'env', 'json', and 'ini'.")
+        if file_type not in ['env', 'json', 'ini', 'custom']:
+            raise ValueError("Invalid file type. Supported types are 'env', 'json', 'ini', and 'custom'.")
 
         if file_path is None:
             file_path = self._default_file_path(file_type)
@@ -39,6 +45,10 @@ class DotSetup:
             value = self._load_from_json(variable_name, file_path)
         elif file_type == 'ini':
             value = self._load_from_ini(variable_name, file_path)
+        elif file_type == 'custom':
+            value = self._load_from_custom(variable_name, file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {file_type}")
 
         return value
 
@@ -50,6 +60,8 @@ class DotSetup:
             return 'config.json'
         elif file_type == 'ini':
             return 'config.ini'
+        elif file_type == 'custom':
+            return 'customfile.customcfg'
 
     def _find_env_file(self):
         """Find the appropriate .env file from a list of possible names."""
@@ -80,7 +92,7 @@ class DotSetup:
                     key, value = line.strip().split('=')
                     if key == variable_name:
                         return value
-            raise VariableNotFoundError(variable_name, file_path)
+                raise VariableNotFoundError(variable_name, file_path)
         else:
             raise FileNotFoundError("env", file_path)
 
@@ -147,3 +159,116 @@ class DotSetup:
                 raise VariableNotFoundError(variable_name, file_path)
         else:
             raise FileNotFoundError("INI", file_path)
+
+
+    def _load_from_custom(self, variable_name, file_path):
+        """
+        Load a variable from a custom file.
+
+        Args:
+            variable_name (str): The name of the variable to load.
+            file_path (str): The path to the custom file.
+
+        Returns:
+            The value of the variable.
+
+        Raises:
+            FileNotFoundError: If the custom file is not found.
+            VariableNotFoundError: If the variable is not found in the custom file.
+        """
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as custom_file:
+                data = custom_file.readlines()
+                try:
+                    parsed_data = self._parse_custom_format(data)
+                except (SyntaxError, ValueError) as e:
+                    raise JSONDecodeError(file_path) from e
+                nested_keys = variable_name.split('.')
+                for key in nested_keys:
+                    parsed_data = parsed_data.get(key, {})
+                return parsed_data
+        else:
+            raise FileNotFoundError("Custom", file_path)
+
+    def _parse_custom_format(self, lines):
+        """
+        Parse the custom file content.
+
+        Args:
+            lines (list): List of lines from the custom file.
+
+        Returns:
+            Parsed data based on your specific custom format.
+        """
+        parsed_data = {}
+        current_dict = parsed_data  # Track the current dictionary
+
+        for line in lines:
+            line = line.strip()
+
+            # Skip empty lines and comments
+            if not line or line.startswith("#"):
+                continue
+
+            # Check if the line contains an equal sign
+            if '=' in line:
+                # Split the line into key and value
+                key, value = line.split('=', 1)
+
+                # Check if the value is enclosed in curly braces indicating a nested variable
+                if value.startswith('{') and value.endswith('}'):
+                    # Update the current dictionary with the nested key-value pair
+                    current_dict[key] = self._parse_nested_values(value)
+                else:
+                    current_dict[key] = self._parse_single_value(value)
+            elif line.startswith("{") and line.endswith("}"):
+                # Handle nested dictionaries
+                nested_dict = self._parse_nested_values(line)
+                current_dict.update(nested_dict)
+            else:
+                # Handle cases where there is no equal sign
+                current_dict[line] = None
+
+        return parsed_data
+
+    def _parse_nested_values(self, value):
+        """
+        Parse nested values enclosed in curly braces.
+
+        Args:
+            value (str): String containing nested values.
+
+        Returns:
+            Parsed nested values.
+        """
+        # Remove curly braces and split values
+        values = value[1:-1].split(',')
+
+        # Parse each value in the list
+        parsed_values = [self._parse_single_value(v.strip()) for v in values]
+
+        return parsed_values
+
+    def _parse_single_value(self, value):
+        """
+        Parse a single value.
+
+        Args:
+            value (str): String containing a single value.
+
+        Returns:
+            Parsed value.
+        """
+        # Check if the value is a number
+        if value.isdigit():
+            return int(value)
+
+        # Check if the value is a boolean
+        elif value.lower() == 'true' or value.lower() == 'false':
+            return value.lower() == 'true'
+
+        # Check if the value is enclosed in quotes, consider it a string
+        elif value.startswith('"') and value.endswith('"'):
+            return value.strip('"')
+
+        return value
